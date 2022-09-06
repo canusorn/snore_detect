@@ -18,15 +18,23 @@
 
 */
 
+/*
+   https://www.instructables.com/Snore-O-Meter/
+   the Journal of Sleep Research has published a paper called "How to measure snoring? A comparison of the microphone, cannula and piezoelectric sensor" in 2015 (ref. J Sleep Res. (2016) 25, 158–168) that indicates that snoring sounds of people from Iceland have a fundamental frequency range mainly in the 70 - 160 Hz range.
+   https://onlinelibrary.wiley.com/doi/pdf/10.1111/jsr.12356
+
+   https://www.researchgate.net/publication/234090531_Energy_Types_of_Snoring_Sounds_in_Patients_with_Obstructive_Sleep_Apnea_Syndrome_A_Preliminary_Observation#pf4
+*/
+
 #include "arduinoFFT.h"
 
 arduinoFFT FFT = arduinoFFT(); /* Create FFT object */
 /*
   These values can be changed in order to evaluate the functions
 */
-#define CHANNEL A0
-const uint16_t samples = 64; //This value MUST ALWAYS be a power of 2
-const double samplingFrequency = 4000; //Hz, must be less than 10000 due to ADC
+#define CHANNEL 36
+const uint16_t samples = 256; //This value MUST ALWAYS be a power of 2
+const double samplingFrequency = 1000; //Hz, must be less than 10000 due to ADC
 
 unsigned int sampling_period_us;
 unsigned long microseconds;
@@ -47,10 +55,11 @@ void setup()
 {
   sampling_period_us = round(1000000 * (1.0 / samplingFrequency));
   Serial.begin(115200);
-  pinMode(D0, OUTPUT);
-  digitalWrite(D0, LOW);
-  pinMode(D5, OUTPUT);
-  digitalWrite(D5, HIGH);
+
+  pinMode(26, OUTPUT);
+  digitalWrite(26, LOW);
+  pinMode(18, OUTPUT);
+  digitalWrite(18, HIGH);
 
   while (!Serial);
   Serial.println("Ready");
@@ -62,7 +71,7 @@ void loop()
   microseconds = micros();
   for (int i = 0; i < samples; i++)
   {
-    vReal[i] = analogRead(CHANNEL)-148;
+    vReal[i] = analogRead(CHANNEL) - 2048;
     vImag[i] = 0;
     while (micros() - microseconds < sampling_period_us) {
       //empty loop
@@ -81,12 +90,13 @@ void loop()
   //  Serial.println("Computed Imaginary values:");
   //  PrintVector(vImag, samples, SCL_INDEX);
   FFT.ComplexToMagnitude(vReal, vImag, samples); /* Compute magnitudes */
-//  Serial.println("Computed magnitudes:");
+  //  Serial.println("Computed magnitudes:");
   PrintVector(vReal, (samples >> 1), SCL_FREQUENCY);
-//  double x = FFT.MajorPeak(vReal, samples, samplingFrequency);
-//  Serial.println(x, 6); //Print out what frequency is the most dominant.
+  SnoringDetect(vReal, (samples >> 1));
+  //  double x = FFT.MajorPeak(vReal, samples, samplingFrequency);
+  //  Serial.println(x, 6); //Print out what frequency is the most dominant.
   //  while(1); /* Run Once */
-  delay(500); /* Repeat after delay */
+  delay(300); /* Repeat after delay */
 }
 
 void PrintVector(double *vData, uint16_t bufferSize, uint8_t scaleType)
@@ -111,7 +121,7 @@ void PrintVector(double *vData, uint16_t bufferSize, uint8_t scaleType)
 //    if (scaleType == SCL_FREQUENCY)
 //      Serial.print("Hz\t");
 //  }
-//  Serial.println();
+  //    Serial.println();
   for (uint16_t i = 0; i < bufferSize; i++)
   {
     double abscissa;
@@ -128,9 +138,47 @@ void PrintVector(double *vData, uint16_t bufferSize, uint8_t scaleType)
         abscissa = ((i * 1.0 * samplingFrequency) / samples);
         break;
     }
-//    Serial.print("x:");
-    Serial.println(vData[i], 3);
-//    Serial.print(" \t");
+    //    Serial.print("x:");
+//    Serial.println(vData[i], 3);
+    //        Serial.print(" \t");
   }
-  Serial.println();
+//  Serial.println();
+
+}
+
+bool SnoringDetect(double *vData, uint16_t bufferSize) {
+  uint8_t Snoring = 0;
+
+  // detect peak
+  if (vData[7] + vData[8] > 1000) {
+    Snoring++;
+  }
+  if (vData[15] + vData[16] + vData[17] > 1000) {
+    Snoring++;
+  }
+  if (vData[30] + vData[31] > 1000) {
+    Snoring++;
+  }
+  if (vData[39] + vData[40] > 400) {
+    Snoring++;
+  }
+
+  // detect min
+  if (vData[20] + vData[21] + vData[22] < 800) {
+    Snoring++;
+  }
+  if (vData[36]  < 100) {
+    Snoring++;
+  }
+  if (vData[48]  < 200) {
+    Snoring++;
+  }
+
+  // print score
+  Serial.println("Snoring Score : " + (String)Snoring);
+
+  if (Snoring >= 5)
+    return true;
+  else
+    return false;
 }
