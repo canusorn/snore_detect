@@ -33,8 +33,9 @@ arduinoFFT FFT = arduinoFFT(); /* Create FFT object */
   These values can be changed in order to evaluate the functions
 */
 #define CHANNEL 36
-const uint16_t samples = 256; //This value MUST ALWAYS be a power of 2
-const double samplingFrequency = 1000; //Hz, must be less than 10000 due to ADC
+const uint16_t samples = 64; //This value MUST ALWAYS be a power of 2
+const double samplingFrequency = 2000; //Hz, must be less than 10000 due to ADC
+uint8_t exponent;
 
 unsigned int sampling_period_us;
 unsigned long microseconds;
@@ -51,6 +52,11 @@ double vImag[samples];
 #define SCL_FREQUENCY 0x02
 #define SCL_PLOT 0x03
 
+bool snoringState;
+uint8_t detectIndex, snoringCount;
+const uint16_t snoreThreshold = 1100;
+uint32_t startQuietTime, stopQuietTime, startLoudTime, stopLoudTime;
+
 void setup()
 {
   sampling_period_us = round(1000000 * (1.0 / samplingFrequency));
@@ -63,6 +69,7 @@ void setup()
 
   while (!Serial);
   Serial.println("Ready");
+  exponent = FFT.Exponent(samples);
 }
 
 void loop()
@@ -71,56 +78,69 @@ void loop()
   microseconds = micros();
   for (int i = 0; i < samples; i++)
   {
-    vReal[i] = analogRead(CHANNEL) - 2048;
+    vReal[i] = analogRead(CHANNEL);
     vImag[i] = 0;
     while (micros() - microseconds < sampling_period_us) {
       //empty loop
     }
     microseconds += sampling_period_us;
   }
+  FFT.DCRemoval(vReal, samples);
   /* Print the results of the sampling according to time */
   //  Serial.println("Data:");
   //  PrintVector(vReal, samples, SCL_TIME);
   FFT.Windowing(vReal, samples, FFT_WIN_TYP_HAMMING, FFT_FORWARD);  /* Weigh data */
   //  Serial.println("Weighed data:");
   //  PrintVector(vReal, samples, SCL_TIME);
-  FFT.Compute(vReal, vImag, samples, FFT_FORWARD); /* Compute FFT */
+  FFT.Compute(vReal, vImag, samples, exponent, FFT_FORWARD); /* Compute FFT */
   //  Serial.println("Computed Real values:");
   //  PrintVector(vReal, samples, SCL_INDEX);
   //  Serial.println("Computed Imaginary values:");
   //  PrintVector(vImag, samples, SCL_INDEX);
   FFT.ComplexToMagnitude(vReal, vImag, samples); /* Compute magnitudes */
   //  Serial.println("Computed magnitudes:");
-  PrintVector(vReal, (samples >> 1), SCL_FREQUENCY);
-  SnoringDetect(vReal, (samples >> 1));
+  //  PrintVector(vReal, (samples >> 1), SCL_FREQUENCY);
+  SnoringDetect(ComputeSumPower(vReal, (samples >> 1)));
+  Serial.println(" State:" + String(snoringState*1000));
   //  double x = FFT.MajorPeak(vReal, samples, samplingFrequency);
   //  Serial.println(x, 6); //Print out what frequency is the most dominant.
   //  while(1); /* Run Once */
-  delay(300); /* Repeat after delay */
+  delay(50); /* Repeat after delay */
+}
+
+uint16_t ComputeSumPower(double *vData, uint16_t bufferSize) {
+  uint16_t sum;
+
+  for (uint16_t i = 0; i < bufferSize; i++)
+  {
+    sum += vData[i];
+  }
+  Serial.print("Sum:" + String(sum));
+  return sum;
 }
 
 void PrintVector(double *vData, uint16_t bufferSize, uint8_t scaleType)
 {
-//  for (uint16_t i = 0; i < bufferSize; i++)
-//  {
-//    double abscissa;
-//    /* Print abscissa value */
-//    switch (scaleType)
-//    {
-//      case SCL_INDEX:
-//        abscissa = (i * 1.0);
-//        break;
-//      case SCL_TIME:
-//        abscissa = ((i * 1.0) / samplingFrequency);
-//        break;
-//      case SCL_FREQUENCY:
-//        abscissa = ((i * 1.0 * samplingFrequency) / samples);
-//        break;
-//    }
-//    Serial.print(abscissa, 3);
-//    if (scaleType == SCL_FREQUENCY)
-//      Serial.print("Hz\t");
-//  }
+  //  for (uint16_t i = 0; i < bufferSize; i++)
+  //  {
+  //    double abscissa;
+  //    /* Print abscissa value */
+  //    switch (scaleType)
+  //    {
+  //      case SCL_INDEX:
+  //        abscissa = (i * 1.0);
+  //        break;
+  //      case SCL_TIME:
+  //        abscissa = ((i * 1.0) / samplingFrequency);
+  //        break;
+  //      case SCL_FREQUENCY:
+  //        abscissa = ((i * 1.0 * samplingFrequency) / samples);
+  //        break;
+  //    }
+  //    Serial.print(abscissa, 3);
+  //    if (scaleType == SCL_FREQUENCY)
+  //      Serial.print("Hz\t");
+  //  }
   //    Serial.println();
   for (uint16_t i = 0; i < bufferSize; i++)
   {
@@ -139,46 +159,34 @@ void PrintVector(double *vData, uint16_t bufferSize, uint8_t scaleType)
         break;
     }
     //    Serial.print("x:");
-//    Serial.println(vData[i], 3);
+    Serial.println(vData[i], 3);
     //        Serial.print(" \t");
   }
-//  Serial.println();
+  Serial.println();
 
 }
 
-bool SnoringDetect(double *vData, uint16_t bufferSize) {
-  uint8_t Snoring = 0;
+void SnoringDetect(uint16_t sumPower) {
 
-  // detect peak
-  if (vData[7] + vData[8] > 1000) {
-    Snoring++;
-  }
-  if (vData[15] + vData[16] + vData[17] > 1000) {
-    Snoring++;
-  }
-  if (vData[30] + vData[31] > 1000) {
-    Snoring++;
-  }
-  if (vData[39] + vData[40] > 400) {
-    Snoring++;
-  }
-
-  // detect min
-  if (vData[20] + vData[21] + vData[22] < 800) {
-    Snoring++;
-  }
-  if (vData[36]  < 100) {
-    Snoring++;
-  }
-  if (vData[48]  < 200) {
-    Snoring++;
+  if (snoringState) {   // quiet sound from loud
+    if (sumPower <= snoreThreshold - 100) {
+      detectIndex++;
+      if (detectIndex >= 5) {
+        snoringState = LOW;
+      }
+    }
+    else {
+      detectIndex = 0;
+    }
+  } else {  // loud sound from quiet
+    if (sumPower >= snoreThreshold + 100) {
+      detectIndex++;
+      if (detectIndex >= 5) {
+        snoringState = HIGH;
+      }
+    } else {
+      detectIndex = 0;
+    }
   }
 
-  // print score
-  Serial.println("Snoring Score : " + (String)Snoring);
-
-  if (Snoring >= 5)
-    return true;
-  else
-    return false;
 }
