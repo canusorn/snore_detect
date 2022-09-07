@@ -33,8 +33,8 @@ arduinoFFT FFT = arduinoFFT(); /* Create FFT object */
   These values can be changed in order to evaluate the functions
 */
 #define CHANNEL 36
-const uint16_t samples = 64; //This value MUST ALWAYS be a power of 2
-const double samplingFrequency = 2000; //Hz, must be less than 10000 due to ADC
+const uint16_t samples = 64;           // This value MUST ALWAYS be a power of 2
+const double samplingFrequency = 2000; // Hz, must be less than 10000 due to ADC
 uint8_t exponent;
 
 unsigned int sampling_period_us;
@@ -53,7 +53,7 @@ double vImag[samples];
 #define SCL_PLOT 0x03
 
 bool snoringState;
-uint8_t detectIndex, snoringCount;
+uint8_t detectIndex, snoringCount, correctPeriodCount;
 const uint16_t snoreThreshold = 1100;
 uint32_t startQuietTime, stopQuietTime, startLoudTime, stopLoudTime;
 
@@ -67,7 +67,8 @@ void setup()
   pinMode(18, OUTPUT);
   digitalWrite(18, HIGH);
 
-  while (!Serial);
+  while (!Serial)
+    ;
   Serial.println("Ready");
   exponent = FFT.Exponent(samples);
 }
@@ -80,8 +81,9 @@ void loop()
   {
     vReal[i] = analogRead(CHANNEL);
     vImag[i] = 0;
-    while (micros() - microseconds < sampling_period_us) {
-      //empty loop
+    while (micros() - microseconds < sampling_period_us)
+    {
+      // empty loop
     }
     microseconds += sampling_period_us;
   }
@@ -89,7 +91,7 @@ void loop()
   /* Print the results of the sampling according to time */
   //  Serial.println("Data:");
   //  PrintVector(vReal, samples, SCL_TIME);
-  FFT.Windowing(vReal, samples, FFT_WIN_TYP_HAMMING, FFT_FORWARD);  /* Weigh data */
+  FFT.Windowing(vReal, samples, FFT_WIN_TYP_HAMMING, FFT_FORWARD); /* Weigh data */
   //  Serial.println("Weighed data:");
   //  PrintVector(vReal, samples, SCL_TIME);
   FFT.Compute(vReal, vImag, samples, exponent, FFT_FORWARD); /* Compute FFT */
@@ -101,14 +103,15 @@ void loop()
   //  Serial.println("Computed magnitudes:");
   //  PrintVector(vReal, (samples >> 1), SCL_FREQUENCY);
   SnoringDetect(ComputeSumPower(vReal, (samples >> 1)));
-  Serial.println(" State:" + String(snoringState*1000));
+  Serial.println(" State:" + String(snoringState * 1000));
   //  double x = FFT.MajorPeak(vReal, samples, samplingFrequency);
   //  Serial.println(x, 6); //Print out what frequency is the most dominant.
   //  while(1); /* Run Once */
   delay(50); /* Repeat after delay */
 }
 
-uint16_t ComputeSumPower(double *vData, uint16_t bufferSize) {
+uint16_t ComputeSumPower(double *vData, uint16_t bufferSize)
+{
   uint16_t sum;
 
   for (uint16_t i = 0; i < bufferSize; i++)
@@ -148,45 +151,86 @@ void PrintVector(double *vData, uint16_t bufferSize, uint8_t scaleType)
     /* Print abscissa value */
     switch (scaleType)
     {
-      case SCL_INDEX:
-        abscissa = (i * 1.0);
-        break;
-      case SCL_TIME:
-        abscissa = ((i * 1.0) / samplingFrequency);
-        break;
-      case SCL_FREQUENCY:
-        abscissa = ((i * 1.0 * samplingFrequency) / samples);
-        break;
+    case SCL_INDEX:
+      abscissa = (i * 1.0);
+      break;
+    case SCL_TIME:
+      abscissa = ((i * 1.0) / samplingFrequency);
+      break;
+    case SCL_FREQUENCY:
+      abscissa = ((i * 1.0 * samplingFrequency) / samples);
+      break;
     }
     //    Serial.print("x:");
     Serial.println(vData[i], 3);
     //        Serial.print(" \t");
   }
   Serial.println();
-
 }
 
-void SnoringDetect(uint16_t sumPower) {
+void SnoringDetect(uint16_t sumPower)
+{
 
-  if (snoringState) {   // quiet sound from loud
-    if (sumPower <= snoreThreshold - 100) {
+  if (snoringState)
+  { // quiet sound from loud
+    if (sumPower <= snoreThreshold - 100)
+    {
       detectIndex++;
-      if (detectIndex >= 5) {
+      if (detectIndex >= 5)
+      {
         snoringState = LOW;
+        startQuietTime = millis();
+        // calPeriodTime();
       }
     }
-    else {
-      detectIndex = 0;
-    }
-  } else {  // loud sound from quiet
-    if (sumPower >= snoreThreshold + 100) {
-      detectIndex++;
-      if (detectIndex >= 5) {
-        snoringState = HIGH;
-      }
-    } else {
+    else
+    {
       detectIndex = 0;
     }
   }
+  else
+  { // loud sound from quiet
+    if (sumPower >= snoreThreshold + 100)
+    {
+      detectIndex++;
+      if (detectIndex >= 5)
+      {
+        snoringState = HIGH;
+        startLoudTime = millis();
+        calPeriodTime();
+      }
+    }
+    else
+    {
+      detectIndex = 0;
+    }
+  }
+}
 
+void calPeriodTime()
+{
+  if (!startQuietTime || !startLoudTime)
+  {
+    correctPeriodCount = 0;
+    return;
+  }
+
+  uint32_t periodTime = abs(startQuietTime - startLoudTime); // normal 20-26 per minute => 2300ms to 3000ms cr. https://www.vibhavadi.com/Health-expert/detail/533
+  if (periodTime < 2200/2 && periodTime > 3100/2)
+  {
+    correctPeriodCount = 0;
+    return;
+  }
+
+  correctPeriodCount++;
+  if (correctPeriodCount >= 5)
+  {
+    Serial.println("Snoring Detect!!!!");
+    snoringAction();
+  }
+}
+
+void snoringAction()
+{
+  // relay on
 }
