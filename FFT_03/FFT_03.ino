@@ -174,7 +174,7 @@ void SnoringDetect(uint16_t sumPower)
 
   if (snoringState)
   { // quiet sound from loud
-    if (sumPower <= snoreThreshold - 100)
+    if (sumPower <= snoreThreshold - 10)
     {
       detectIndex++;
       if (detectIndex >= 5)
@@ -191,7 +191,7 @@ void SnoringDetect(uint16_t sumPower)
   }
   else
   { // loud sound from quiet
-    if (sumPower >= snoreThreshold + 100)
+    if (sumPower >= snoreThreshold + 10)
     {
       detectIndex++;
       if (detectIndex >= 5)
