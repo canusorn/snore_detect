@@ -54,7 +54,7 @@ double vImag[samples];
 
 bool snoringState;
 uint8_t detectIndex, snoringCount, correctPeriodCount;
-const uint16_t snoreThreshold = 1100;
+const uint16_t snoreThreshold = 350;
 long startQuietTime, stopQuietTime, startLoudTime, stopLoudTime;
 
 void setup()
@@ -62,10 +62,10 @@ void setup()
   sampling_period_us = round(1000000 * (1.0 / samplingFrequency));
   Serial.begin(115200);
 
-  pinMode(26, OUTPUT);
-  digitalWrite(26, LOW);
-  pinMode(18, OUTPUT);
-  digitalWrite(18, HIGH);
+  pinMode(D0, OUTPUT);
+  digitalWrite(D0, LOW);
+  pinMode(D5, OUTPUT);
+  digitalWrite(D5, HIGH);
 
   while (!Serial)
     ;
@@ -103,8 +103,8 @@ void loop()
   //  Serial.println("Computed magnitudes:");
   //  PrintVector(vReal, (samples >> 1), SCL_FREQUENCY);
   SnoringDetect(ComputeSumPower(vReal, (samples >> 1)));
-  Serial.print(" State:" + String(snoringState * 1000));
-  Serial.println(" Count:" + String(correctPeriodCount *10000));
+  Serial.print(" State:" + String(snoringState * 100));
+  Serial.println(" Count:" + String(correctPeriodCount *100));
   //  double x = FFT.MajorPeak(vReal, samples, samplingFrequency);
   //  Serial.println(x, 6); //Print out what frequency is the most dominant.
   //  while(1); /* Run Once */
