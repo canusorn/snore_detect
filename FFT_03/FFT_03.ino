@@ -32,7 +32,7 @@ arduinoFFT FFT = arduinoFFT(); /* Create FFT object */
 /*
   These values can be changed in order to evaluate the functions
 */
-#define CHANNEL 36
+#define CHANNEL A0
 const uint16_t samples = 64;           // This value MUST ALWAYS be a power of 2
 const double samplingFrequency = 2000; // Hz, must be less than 10000 due to ADC
 uint8_t exponent;
@@ -55,7 +55,7 @@ double vImag[samples];
 bool snoringState;
 uint8_t detectIndex, snoringCount, correctPeriodCount;
 const uint16_t snoreThreshold = 1100;
-uint32_t startQuietTime, stopQuietTime, startLoudTime, stopLoudTime;
+long startQuietTime, stopQuietTime, startLoudTime, stopLoudTime;
 
 void setup()
 {
@@ -103,7 +103,8 @@ void loop()
   //  Serial.println("Computed magnitudes:");
   //  PrintVector(vReal, (samples >> 1), SCL_FREQUENCY);
   SnoringDetect(ComputeSumPower(vReal, (samples >> 1)));
-  Serial.println(" State:" + String(snoringState * 1000));
+  Serial.print(" State:" + String(snoringState * 1000));
+  Serial.println(" Count:" + String(correctPeriodCount *10000));
   //  double x = FFT.MajorPeak(vReal, samples, samplingFrequency);
   //  Serial.println(x, 6); //Print out what frequency is the most dominant.
   //  while(1); /* Run Once */
@@ -151,15 +152,15 @@ void PrintVector(double *vData, uint16_t bufferSize, uint8_t scaleType)
     /* Print abscissa value */
     switch (scaleType)
     {
-    case SCL_INDEX:
-      abscissa = (i * 1.0);
-      break;
-    case SCL_TIME:
-      abscissa = ((i * 1.0) / samplingFrequency);
-      break;
-    case SCL_FREQUENCY:
-      abscissa = ((i * 1.0 * samplingFrequency) / samples);
-      break;
+      case SCL_INDEX:
+        abscissa = (i * 1.0);
+        break;
+      case SCL_TIME:
+        abscissa = ((i * 1.0) / samplingFrequency);
+        break;
+      case SCL_FREQUENCY:
+        abscissa = ((i * 1.0 * samplingFrequency) / samples);
+        break;
     }
     //    Serial.print("x:");
     Serial.println(vData[i], 3);
@@ -215,8 +216,9 @@ void calPeriodTime()
     return;
   }
 
-  uint32_t periodTime = abs(startQuietTime - startLoudTime); // normal 20-26 per minute => 2300ms to 3000ms cr. https://www.vibhavadi.com/Health-expert/detail/533
-  if (periodTime < 2200/2 && periodTime > 3100/2)
+  long periodTime = abs(startQuietTime - startLoudTime); // normal 20-26 per minute => 2300ms to 3000ms cr. https://www.vibhavadi.com/Health-expert/detail/533
+  //  unsigned long periodTime = abs(-10 - 5);
+  if (periodTime < 2200 / 2 && periodTime > 3100 / 2)
   {
     correctPeriodCount = 0;
     return;
@@ -225,6 +227,7 @@ void calPeriodTime()
   correctPeriodCount++;
   if (correctPeriodCount >= 5)
   {
+    correctPeriodCount = 0;
     Serial.println("Snoring Detect!!!!");
     snoringAction();
   }
