@@ -1,31 +1,3 @@
-/*
-
-  Example of use of the FFT libray to compute FFT for a signal sampled through the ADC.
-        Copyright (C) 2018 Enrique Condés and Ragnar Ranøyen Homb
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-*/
-
-/*
-   https://www.instructables.com/Snore-O-Meter/
-   the Journal of Sleep Research has published a paper called "How to measure snoring? A comparison of the microphone, cannula and piezoelectric sensor" in 2015 (ref. J Sleep Res. (2016) 25, 158–168) that indicates that snoring sounds of people from Iceland have a fundamental frequency range mainly in the 70 - 160 Hz range.
-   https://onlinelibrary.wiley.com/doi/pdf/10.1111/jsr.12356
-
-   https://www.researchgate.net/publication/234090531_Energy_Types_of_Snoring_Sounds_in_Patients_with_Obstructive_Sleep_Apnea_Syndrome_A_Preliminary_Observation#pf4
-*/
-
 #include "arduinoFFT.h"
 
 arduinoFFT FFT = arduinoFFT(); /* Create FFT object */
@@ -55,7 +27,7 @@ double vImag[samples];
 bool snoringState;
 uint8_t detectIndex, snoringCount, correctPeriodCount;
 const uint16_t snoreThreshold = 350;
-long startQuietTime, stopQuietTime, startLoudTime, stopLoudTime;
+uint32_t startQuietTime, stopQuietTime, startLoudTime, stopLoudTime;
 
 void setup()
 {
@@ -103,8 +75,8 @@ void loop()
   //  Serial.println("Computed magnitudes:");
   //  PrintVector(vReal, (samples >> 1), SCL_FREQUENCY);
   SnoringDetect(ComputeSumPower(vReal, (samples >> 1)));
-  Serial.print(" State:" + String(snoringState * 100));
-  Serial.println(" Count:" + String(correctPeriodCount *100));
+  Serial.print("\t\tState:" + String(snoringState * 100));
+  Serial.println("\t\tCount:" + String(correctPeriodCount * 100));
   //  double x = FFT.MajorPeak(vReal, samples, samplingFrequency);
   //  Serial.println(x, 6); //Print out what frequency is the most dominant.
   //  while(1); /* Run Once */
@@ -119,7 +91,7 @@ uint16_t ComputeSumPower(double *vData, uint16_t bufferSize)
   {
     sum += vData[i];
   }
-  Serial.print("Sum:" + String(sum));
+  Serial.print("Sound:" + String(sum));
   return sum;
 }
 
@@ -181,7 +153,7 @@ void SnoringDetect(uint16_t sumPower)
       {
         snoringState = LOW;
         startQuietTime = millis();
-        // calPeriodTime();
+        //         calPeriodTime();
       }
     }
     else
@@ -212,14 +184,17 @@ void calPeriodTime()
 {
   if (!startQuietTime || !startLoudTime)
   {
+    Serial.println("not full period");
     correctPeriodCount = 0;
     return;
   }
 
-  long periodTime = abs(startQuietTime - startLoudTime); // normal 20-26 per minute => 2300ms to 3000ms cr. https://www.vibhavadi.com/Health-expert/detail/533
-  //  unsigned long periodTime = abs(-10 - 5);
-  if (periodTime < 2200 / 2 && periodTime > 3100 / 2)
+  int32_t periodTime = startQuietTime - startLoudTime; // normal 20-26 per minute => 2300ms to 3000ms cr. https://www.vibhavadi.com/Health-expert/detail/533
+  periodTime = abs(periodTime);
+  if (periodTime < 1500 || periodTime > 3300)
   {
+    //    Serial.println("Time not in range : " + (String)periodTime);
+    Serial.println("Time not in range");
     correctPeriodCount = 0;
     return;
   }
@@ -228,12 +203,12 @@ void calPeriodTime()
   if (correctPeriodCount >= 5)
   {
     correctPeriodCount = 0;
-    Serial.println("Snoring Detect!!!!");
     snoringAction();
   }
 }
 
 void snoringAction()
 {
+  Serial.println("Snoring Detect!!!!");
   // relay on
 }
