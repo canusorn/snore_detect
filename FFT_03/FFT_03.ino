@@ -1,5 +1,24 @@
 #include "arduinoFFT.h"
+#define BLYNK_TEMPLATE_ID "TMPL5uKc3ii6"
+#define BLYNK_DEVICE_NAME "Ford"
+#define BLYNK_AUTH_TOKEN "F6ciwDWw9YCAzK2QgiCo6iDwvXun1Txb"
 
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+
+char auth[] = BLYNK_AUTH_TOKEN;
+
+char ssid[] = "HUANG HOUCAFE_2.4GHz";
+char pass[] = "GOLDENAGE";
+
+BlynkTimer timer;
+
+void myTimerEvent()
+{
+  // You can send any value at any time.
+  // Please don't send more that 10 values per second.
+  Blynk.virtualWrite(V0, "test");
+}
 arduinoFFT FFT = arduinoFFT(); /* Create FFT object */
 /*
   These values can be changed in order to evaluate the functions
@@ -26,13 +45,15 @@ double vImag[samples];
 
 bool snoringState;
 uint8_t detectIndex, snoringCount, correctPeriodCount;
-const uint16_t snoreThreshold = 350;
+const uint16_t snoreThreshold = 200;
 uint32_t startQuietTime, stopQuietTime, startLoudTime, stopLoudTime;
 
 void setup()
 {
   sampling_period_us = round(1000000 * (1.0 / samplingFrequency));
   Serial.begin(115200);
+
+  Blynk.begin(auth, ssid, pass);
 
   pinMode(D0, OUTPUT);
   digitalWrite(D0, LOW);
@@ -47,6 +68,8 @@ void setup()
 
 void loop()
 {
+  Blynk.run();
+
   /*SAMPLING*/
   microseconds = micros();
   for (int i = 0; i < samples; i++)
@@ -77,6 +100,8 @@ void loop()
   SnoringDetect(ComputeSumPower(vReal, (samples >> 1)));
   Serial.print("\t\tState:" + String(snoringState * 100));
   Serial.println("\t\tCount:" + String(correctPeriodCount * 100));
+  Blynk.virtualWrite(V2, snoringState);
+  Blynk.virtualWrite(V3, correctPeriodCount);
   //  double x = FFT.MajorPeak(vReal, samples, samplingFrequency);
   //  Serial.println(x, 6); //Print out what frequency is the most dominant.
   //  while(1); /* Run Once */
@@ -92,6 +117,7 @@ uint16_t ComputeSumPower(double *vData, uint16_t bufferSize)
     sum += vData[i];
   }
   Serial.print("Sound:" + String(sum));
+  Blynk.virtualWrite(V1, sum);
   return sum;
 }
 
@@ -124,15 +150,15 @@ void PrintVector(double *vData, uint16_t bufferSize, uint8_t scaleType)
     /* Print abscissa value */
     switch (scaleType)
     {
-      case SCL_INDEX:
-        abscissa = (i * 1.0);
-        break;
-      case SCL_TIME:
-        abscissa = ((i * 1.0) / samplingFrequency);
-        break;
-      case SCL_FREQUENCY:
-        abscissa = ((i * 1.0 * samplingFrequency) / samples);
-        break;
+    case SCL_INDEX:
+      abscissa = (i * 1.0);
+      break;
+    case SCL_TIME:
+      abscissa = ((i * 1.0) / samplingFrequency);
+      break;
+    case SCL_FREQUENCY:
+      abscissa = ((i * 1.0 * samplingFrequency) / samples);
+      break;
     }
     //    Serial.print("x:");
     Serial.println(vData[i], 3);
