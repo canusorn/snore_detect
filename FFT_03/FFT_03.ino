@@ -5,6 +5,7 @@
 
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
+#include <Servo.h>
 
 char auth[] = BLYNK_AUTH_TOKEN;
 
@@ -12,6 +13,7 @@ char ssid[] = "HUANG HOUCAFE_2.4GHz";
 char pass[] = "GOLDENAGE";
 
 BlynkTimer timer;
+Servo myservo;
 
 void myTimerEvent()
 {
@@ -27,7 +29,7 @@ arduinoFFT FFT = arduinoFFT(); /* Create FFT object */
 const uint16_t samples = 64;           // This value MUST ALWAYS be a power of 2
 const double samplingFrequency = 2000; // Hz, must be less than 10000 due to ADC
 uint8_t exponent;
-
+uint16_t snoreCount;
 unsigned int sampling_period_us;
 unsigned long microseconds;
 
@@ -53,16 +55,21 @@ void setup()
   sampling_period_us = round(1000000 * (1.0 / samplingFrequency));
   Serial.begin(115200);
 
+  myservo.attach(D6);
+  myservo.write(0);
+
   Blynk.begin(auth, ssid, pass);
 
   pinMode(D0, OUTPUT);
   digitalWrite(D0, LOW);
+  pinMode(D4,OUTPUT);
+  digitalWrite(D4, HIGH);
   pinMode(D5, OUTPUT);
   digitalWrite(D5, HIGH);
 
-  while (!Serial)
-    ;
-  Serial.println("Ready");
+  //  while (!Serial)
+  //    ;
+  //  Serial.println("Ready");
   exponent = FFT.Exponent(samples);
 }
 
@@ -150,15 +157,15 @@ void PrintVector(double *vData, uint16_t bufferSize, uint8_t scaleType)
     /* Print abscissa value */
     switch (scaleType)
     {
-    case SCL_INDEX:
-      abscissa = (i * 1.0);
-      break;
-    case SCL_TIME:
-      abscissa = ((i * 1.0) / samplingFrequency);
-      break;
-    case SCL_FREQUENCY:
-      abscissa = ((i * 1.0 * samplingFrequency) / samples);
-      break;
+      case SCL_INDEX:
+        abscissa = (i * 1.0);
+        break;
+      case SCL_TIME:
+        abscissa = ((i * 1.0) / samplingFrequency);
+        break;
+      case SCL_FREQUENCY:
+        abscissa = ((i * 1.0 * samplingFrequency) / samples);
+        break;
     }
     //    Serial.print("x:");
     Serial.println(vData[i], 3);
@@ -236,5 +243,33 @@ void calPeriodTime()
 void snoringAction()
 {
   Serial.println("Snoring Detect!!!!");
-  // relay on
+  snoreCount++;
+  
+  digitalWrite(D4, LOW);
+
+  if (snoreCount == 1) {
+    myservo.write(5);
+    delay(100);
+    myservo.write(10);
+  }
+  else if (snoreCount == 2) {
+    myservo.write(15);
+    delay(100);
+    myservo.write(20);
+  }
+  else if (snoreCount == 3) {
+    myservo.write(25);
+    delay(100);
+    myservo.write(30);
+  }
+  else if (snoreCount == 4) {
+    myservo.write(35);
+    delay(100);
+    myservo.write(40);
+  }
+  else if (snoreCount == 5) {
+    myservo.write(45);
+    delay(100);
+    myservo.write(50);
+  }
 }
