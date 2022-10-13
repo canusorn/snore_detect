@@ -62,7 +62,7 @@ void setup()
 
   pinMode(D0, OUTPUT);
   digitalWrite(D0, LOW);
-  pinMode(D4,OUTPUT);
+  pinMode(D4, OUTPUT);
   digitalWrite(D4, HIGH);
   pinMode(D5, OUTPUT);
   digitalWrite(D5, HIGH);
@@ -242,9 +242,9 @@ void calPeriodTime()
 
 void snoringAction()
 {
-  Serial.println("Snoring Detect!!!!");
   snoreCount++;
-  
+  Serial.println("Snoring Detect!!!! " + String(snoreCount) + " times");
+
   digitalWrite(D4, LOW);
 
   if (snoreCount == 1) {
