@@ -130,27 +130,6 @@ uint16_t ComputeSumPower(double *vData, uint16_t bufferSize)
 
 void PrintVector(double *vData, uint16_t bufferSize, uint8_t scaleType)
 {
-  //  for (uint16_t i = 0; i < bufferSize; i++)
-  //  {
-  //    double abscissa;
-  //    /* Print abscissa value */
-  //    switch (scaleType)
-  //    {
-  //      case SCL_INDEX:
-  //        abscissa = (i * 1.0);
-  //        break;
-  //      case SCL_TIME:
-  //        abscissa = ((i * 1.0) / samplingFrequency);
-  //        break;
-  //      case SCL_FREQUENCY:
-  //        abscissa = ((i * 1.0 * samplingFrequency) / samples);
-  //        break;
-  //    }
-  //    Serial.print(abscissa, 3);
-  //    if (scaleType == SCL_FREQUENCY)
-  //      Serial.print("Hz\t");
-  //  }
-  //    Serial.println();
   for (uint16_t i = 0; i < bufferSize; i++)
   {
     double abscissa;
